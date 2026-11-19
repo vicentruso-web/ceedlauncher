@@ -1,5 +1,8 @@
 # Proyecto FP — Laboratorio
 
-- `panel-laboratorio.html`: panel de acceso y documentación del laboratorio (FW-01 OpenWrt, Proxmox, Cabina-01, GNS3, switches Street-Data, Zabbix).
-  Ábrelo en el navegador desde el portátil del laboratorio.
-
+| Archivo | Qué es |
+| --- | --- |
+| `panel-laboratorio.html` | Panel de acceso y documentación del laboratorio (FW-01 OpenWrt, Proxmox, Cabina-01, GNS3, switches Street-Data, Zabbix). Ábrelo en el navegador desde el portátil del laboratorio. |
+| `lab-gns3-fortigate-street-data.md` | Lab GNS3: FortiGate, Proxmox, cabina y router Street-Data (sin las imágenes ni los diagramas del documento original). |
+| `guia-ubuntu-podman-cockpit-zabbix.md` | Guía paso a paso: Ubuntu Server, Podman, Cockpit y Zabbix. |
+| `migracion-panel-zabbix.md` | Migración: panel y Zabbix en máquinas separadas. |
