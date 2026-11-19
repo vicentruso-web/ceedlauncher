@@ -528,11 +528,11 @@ write memory</pre><p class="tl end"><span class="pr">Street-data-03#</span>▌</
   <div class="tblwrap"><table>
     <thead><tr><th>Máquina</th><th>Dónde</th><th>vCPU / RAM</th><th>Disco</th></tr></thead>
     <tbody>
-      <tr><td>Promox-02</td><td>Hyper-V · virtualización anidada</td><td class="m">8 / 6 GB</td><td>—</td></tr>
-      <tr><td>Cabina-01</td><td>Hyper-V</td><td class="m">2</td><td class="m">sistema 16 GB + datos 30 GB · C:\HyperV\Cabina-01</td></tr>
+      <tr><td>Promox-02</td><td>Hyper-V · virtualización anidada</td><td class="m">8 / 6 GB</td><td class="m">2 discos · C:\ProgramData\Microsoft\Windows\Virtual Hard Disks\</td></tr>
+      <tr><td>Cabina-01</td><td>Hyper-V</td><td class="m">2</td><td class="m">C:\HyperV\Cabina-01\Virtual Hard Disks\sistema.vhdx (16 GB)<br>C:\HyperV\Cabina-01\Virtual Hard Disks\datos.vhdx (30 GB)</td></tr>
       <tr><td>Zabbix-01 (VM 100)</td><td>Proxmox · vmbr1</td><td class="m">2 / 2 GB</td><td class="m">8 GB · cabina-01-lvm</td></tr>
-      <tr><td>FW-01</td><td>Hyper-V · 5 tarjetas</td><td class="m">—</td><td class="m">openwrt.vhdx</td></tr>
-      <tr><td>GNS3 VM</td><td>Hyper-V</td><td class="m">—</td><td>—</td></tr>
+      <tr><td>FW-01</td><td>Hyper-V · 5 tarjetas</td><td class="m">—</td><td class="m">D:\HyperV\FW-01\openwrt.vhdx</td></tr>
+      <tr><td>GNS3 VM</td><td>Hyper-V</td><td class="m">—</td><td class="m">C:\GNS3\VM\gns3vm-disk1.vhdx<br>C:\GNS3\VM\gns3vm-disk2.vhdx</td></tr>
     </tbody></table></div>
 
   <h2 class="sec" id="doc-credenciales">Usuarios y token</h2>
