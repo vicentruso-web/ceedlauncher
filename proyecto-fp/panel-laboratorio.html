@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel del laboratorio FP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Plan: consola de acceso con el esquema de red como interfaz. FW-01 arriba a todo lo ancho con sus 5 puertos;
+   debajo una columna por red alineada con su puerto, y en cada columna los equipos con sus botones de acceso.
+   La documentación (switches, redes, firewall, máquinas) va en su propia pestaña. */
+:root{
+  --bg:#eef1f6; --panel:#ffffff; --ink:#152033; --muted:#5a6780; --line:#d6dce8;
+  --accent:#2f5bd8; --accent-soft:#e3eafc;
+  --ok:#1d8a5b; --ok-soft:#dff3ea; --warn:#b26a00; --warn-soft:#fbefd9;
+  --code-bg:#f4f6fb;
+  --gestion:#1d8a5b; --wan:#8a93a6; --dmz:#d0582f; --street:#7a4fd0; --internal:#2f5bd8;
+  --display:"Sora",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1522; --panel:#161e2e; --ink:#e7ecf5; --muted:#97a3ba; --line:#28334a;
+    --accent:#7d9cff; --accent-soft:#1f2b48; --ok:#4cc995; --ok-soft:#173326; --warn:#f0b04d; --warn-soft:#3a2c12;
+    --code-bg:#0f1624; --gestion:#4cc995; --wan:#8a93a6; --dmz:#f0875f; --street:#b394ff; --internal:#7d9cff;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1522; --panel:#161e2e; --ink:#e7ecf5; --muted:#97a3ba; --line:#28334a;
+  --accent:#7d9cff; --accent-soft:#1f2b48; --ok:#4cc995; --ok-soft:#173326; --warn:#f0b04d; --warn-soft:#3a2c12;
+  --code-bg:#0f1624; --gestion:#4cc995; --wan:#8a93a6; --dmz:#f0875f; --street:#b394ff; --internal:#7d9cff;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:12.5px/1.4 var(--body)}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:14px 16px 40px}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+h1{font:700 17px/1.15 var(--display);margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:2px 0 0;font-size:12.5px;max-width:80ch}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px}
+nav.tabs a{padding:7px 12px;font-size:13px;text-decoration:none;color:var(--muted);font-weight:600;border-bottom:3px solid transparent;margin-bottom:-1px}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.view{display:none}
+section.view.on{display:block}
+
+/* ---------- Esquema de acceso ---------- */
+.topo{--cols:1.35fr .7fr .75fr 1.2fr 1.05fr; display:grid; gap:0}
+.fw{background:color-mix(in srgb,var(--accent) 8%,var(--panel));border:1.25px solid var(--muted);border-radius:9px;padding:7px 10px 8px}
+.fw-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.fw-name{display:flex;align-items:center;gap:10px}
+.fw-name .led{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.fw-head h2{font:600 12.5px/1.2 var(--body);margin:0}
+.fw-head .role{color:var(--muted);font-size:10.5px}
+.ports{display:grid;grid-template-columns:var(--cols);gap:10px;margin-top:6px}
+.port{justify-self:center;display:flex;flex-direction:column;align-items:center;gap:0;text-align:center;min-width:90px;line-height:1.25}
+.port .sock{position:relative;width:28px;height:20px;margin:3px 0 2px}
+.port .sock svg{width:28px;height:20px;display:block}
+.port .sock .pled{position:absolute;left:-7px;top:-5px;width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.port b{font:600 11.5px var(--body);color:var(--ink)}
+.port .z{font-size:10px;color:var(--muted)}
+.port .i{font:10px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.drops{display:grid;grid-template-columns:var(--cols);gap:10px}
+.drops i{justify-self:center;width:3px;height:10px;background:var(--c);border-radius:2px}
+.nets{display:grid;grid-template-columns:var(--cols);gap:8px;align-items:start}
+.net{background:var(--panel);border:1.5px solid var(--c);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.net-head{border-bottom:1px solid var(--line);padding-bottom:5px}
+.net-head h3{font:600 12px/1.2 var(--display);margin:0;color:var(--c)}
+.net-head p{margin:0;font:10px var(--mono);color:var(--muted)}
+.dev{border:1px solid var(--line);border-radius:8px;padding:5px 7px;display:flex;flex-direction:column;gap:3px;background:var(--bg)}
+.dev.pend{border-style:dashed}
+.dev-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4px 8px;flex-wrap:wrap}
+.dev-top>div{min-width:0}
+.dev h4{margin:0;font:600 11.5px/1.2 var(--display)}
+.dev .ip{font:10px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.dev .what{font-size:11px;color:var(--muted);margin:0;line-height:1.3}
+.st{flex:none;font-size:9px;font-weight:600;padding:1px 6px;border-radius:999px}
+.st.ok{background:var(--ok-soft);color:var(--ok)}
+.st.warn{background:var(--warn-soft);color:var(--warn)}
+.btns{display:flex;flex-wrap:wrap;gap:4px}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 10.5px/1.3 var(--body);text-decoration:none;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.go{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.go:hover{filter:brightness(1.08);color:#fff}
+.btn svg{width:13px;height:13px;flex:none}
+.empty-net{font-size:10px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:6px 8px;margin:0}
+.hint{margin-top:8px;display:flex;flex-wrap:wrap;gap:3px 16px;font-size:10.5px;color:var(--muted)}
+.hint code{font-family:var(--mono);font-size:11px}
+
+/* ---------- Documentación ---------- */
+.docnav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.docnav a{font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);text-decoration:none;color:var(--ink)}
+.docnav a:hover{border-color:var(--accent);color:var(--accent)}
+h2.sec{font:600 19px/1.3 var(--display);margin:30px 0 12px;scroll-margin-top:12px}
+h2.sec:first-of-type{margin-top:0}
+.tblwrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.3 var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:var(--code-bg)}
+tr:last-child td{border-bottom:0}
+td.m{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+.swcard{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--street);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:12px}
+.swcard h3{font:600 17px var(--display);margin:0}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+pre.conf{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:12px;font:12.5px/1.5 var(--mono);max-height:320px;overflow:auto;white-space:pre}
+.chip{display:inline-block;font:500 12px var(--mono);padding:2px 7px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin:2px 4px 2px 0}
+.mono{font-family:var(--mono);font-size:12.5px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+
+.scroll{overflow-x:auto;padding-bottom:4px}
+.topo{min-width:760px}
+@media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div>
+    <h1>Panel del laboratorio FP</h1>
+    <p class="sub">«Web» abre la consola en una pestaña nueva · «SSH» copia el comando para PowerShell.</p>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Pestañas">
+  <a href="#acceso" data-view="acceso">Acceso</a>
+  <a href="#documentacion" data-view="documentacion">Documentación</a>
+</nav>
+
+<!-- ======================= ACCESO ======================= -->
+<section class="view" id="v-acceso" aria-label="Acceso">
+<div class="scroll"><div class="topo">
+  <div class="fw">
+    <div class="fw-head">
+      <div class="fw-name"><span class="led"></span><div>
+        <h2>FW-01 · OpenWrt 25.12 · firewall central</h2>
+        <div class="role">Todo el tráfico entre redes pasa por aquí · usuario root</div>
+      </div></div>
+      <div class="btns">
+        <a class="btn go" href="http://172.29.0.1/" target="_blank" rel="noopener">Web LuCI</a>
+        <button class="btn" data-copy="ssh root@172.29.0.1">SSH</button>
+      </div>
+    </div>
+    <div class="ports">
+      <div class="port" style="--c:var(--gestion)"><span class="sock"><span class="pled"></span><svg viewBox="0 0 46 32" fill="none" stroke="currentColor" style="color:var(--muted)"><rect x="1" y="1" width="44" height="30" rx="4" stroke-width="1.4"/><path d="M13 26v-9h6v-5h8v5h6v9z" stroke-width="1.2"/></svg></span><b>eth0</b><span class="z">gestion</span><span class="i">172.29.0.1/23</span></div>
+      <div class="port" style="--c:var(--wan)"><span class="sock"><span class="pled"></span><svg viewBox="0 0 46 32" fill="none" stroke="currentColor" style="color:var(--muted)"><rect x="1" y="1" width="44" height="30" rx="4" stroke-width="1.4"/><path d="M13 26v-9h6v-5h8v5h6v9z" stroke-width="1.2"/></svg></span><b>eth1</b><span class="z">wan</span><span class="i">DHCP</span></div>
+      <div class="port" style="--c:var(--dmz)"><span class="sock"><span class="pled"></span><svg viewBox="0 0 46 32" fill="none" stroke="currentColor" style="color:var(--muted)"><rect x="1" y="1" width="44" height="30" rx="4" stroke-width="1.4"/><path d="M13 26v-9h6v-5h8v5h6v9z" stroke-width="1.2"/></svg></span><b>eth2</b><span class="z">dmz</span><span class="i">172.29.2.1/23</span></div>
+      <div class="port" style="--c:var(--street)"><span class="sock"><span class="pled"></span><svg viewBox="0 0 46 32" fill="none" stroke="currentColor" style="color:var(--muted)"><rect x="1" y="1" width="44" height="30" rx="4" stroke-width="1.4"/><path d="M13 26v-9h6v-5h8v5h6v9z" stroke-width="1.2"/></svg></span><b>eth3</b><span class="z">streetdata</span><span class="i">192.168.100.1/24</span></div>
+      <div class="port" style="--c:var(--internal)"><span class="sock"><span class="pled"></span><svg viewBox="0 0 46 32" fill="none" stroke="currentColor" style="color:var(--muted)"><rect x="1" y="1" width="44" height="30" rx="4" stroke-width="1.4"/><path d="M13 26v-9h6v-5h8v5h6v9z" stroke-width="1.2"/></svg></span><b>eth4</b><span class="z">internal</span><span class="i">172.29.4.1/23</span></div>
+    </div>
+  </div>
+  <div class="drops" aria-hidden="true">
+    <i style="--c:var(--gestion)"></i><i style="--c:var(--wan)"></i><i style="--c:var(--dmz)"></i><i style="--c:var(--street)"></i><i style="--c:var(--internal)"></i>
+  </div>
+
+  <div class="nets">
+    <!-- GESTION -->
+    <div class="net" style="--c:var(--gestion)">
+      <div class="net-head"><h3>GESTION</h3><p>172.29.0.0/23</p></div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>Promox-02</h4><div class="ip">172.29.0.22 · root@pam</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><a class="btn go" href="https://172.29.0.22:8006/" target="_blank" rel="noopener">Web</a><button class="btn" data-copy="ssh root@172.29.0.22">SSH</button></div>
+      </div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>Cabina-01</h4><div class="ip">172.29.0.23 · vicente</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><a class="btn go" href="https://172.29.0.23:9090/" target="_blank" rel="noopener">Cockpit</a><button class="btn" data-copy="ssh vicente@172.29.0.23">SSH</button></div>
+      </div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>GNS3 VM</h4><div class="ip">172.29.0.40 · gns3</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><a class="btn go" href="http://172.29.0.40/" target="_blank" rel="noopener">Web</a><button class="btn" data-copy="ssh gns3@172.29.0.40">SSH</button><a class="btn" href="http://172.29.0.40/v2/projects/f1a214bd-1578-430f-9b5a-276287390824/nodes" target="_blank" rel="noopener">API</a></div>
+      </div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>Portátil</h4><div class="ip">172.29.0.10 · host Hyper-V</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><button class="btn" data-copy='route print -4 | findstr "172.29 172.30"'>Ver rutas</button></div>
+      </div>
+    </div>
+
+    <!-- WAN -->
+    <div class="net" style="--c:var(--wan)">
+      <div class="net-head"><h3>WAN</h3><p>Default Switch</p></div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>Internet</h4><div class="ip">NAT de Windows</div></div></div>
+      </div>
+    </div>
+
+    <!-- DMZ -->
+    <div class="net" style="--c:var(--dmz)">
+      <div class="net-head"><h3>DMZ</h3><p>172.29.2.0/23</p></div>
+      <p class="empty-net">Sin equipos todavía. En Proxmox irá en vmbr2 (pendiente).</p>
+    </div>
+
+    <!-- STREET-DATA -->
+    <div class="net" style="--c:var(--street)">
+      <div class="net-head"><h3>Street-Data</h3><p>tránsito 192.168.100.0/24</p></div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>Street-data-01</h4><div class="ip">172.29.7.1 · Te1/1/6 .100.2</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><button class="btn" data-copy="ssh gns3@172.29.0.40">Consola</button><a class="btn" href="#sw-01">Configuración</a></div>
+      </div>
+      <div class="dev pend">
+        <div class="dev-top"><div><h4>Street-data-02</h4><div class="ip">172.29.7.2</div></div><span class="st warn">Pendiente</span></div>
+        <div class="btns"><a class="btn" href="#sw-02">Configuración</a></div>
+      </div>
+      <div class="dev pend">
+        <div class="dev-top"><div><h4>Street-data-03</h4><div class="ip">172.29.7.3</div></div><span class="st warn">Pendiente</span></div>
+        <div class="btns"><a class="btn" href="#sw-03">Configuración</a></div>
+      </div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>PC1 (VPCS)</h4><div class="ip">172.30.1.10 · VLAN 10</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><button class="btn" data-copy="ping 172.30.1.10">Ping</button></div>
+      </div>
+    </div>
+
+    <!-- INTERNAL -->
+    <div class="net" style="--c:var(--internal)">
+      <div class="net-head"><h3>INTERNAL</h3><p>172.29.4.0/23 · vmbr1</p></div>
+      <div class="dev">
+        <div class="dev-top"><div><h4>Zabbix-01</h4><div class="ip">172.29.4.10 · administrador</div></div><span class="st ok">OK</span></div>
+        <div class="btns"><button class="btn" data-copy="ssh administrador@172.29.4.10">SSH</button></div>
+      </div>
+      <div class="dev pend">
+        <div class="dev-top"><div><h4>Cockpit + Podman</h4><div class="ip">172.29.4.10:9090</div></div><span class="st warn">Pendiente</span></div>
+        <div class="btns"><a class="btn go" href="https://172.29.4.10:9090/" target="_blank" rel="noopener">Web</a></div>
+      </div>
+      <div class="dev pend">
+        <div class="dev-top"><div><h4>Zabbix web</h4><div class="ip">172.29.4.10:8080</div></div><span class="st warn">Pendiente</span></div>
+        <div class="btns"><a class="btn go" href="http://172.29.4.10:8080/" target="_blank" rel="noopener">Web</a><button class="btn" data-copy="SECRETO-TOKEN-PVE (no se publica)">Token PVE</button></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<div class="hint">
+  <span>Consola de un switch: <code>ssh gns3@172.29.0.40</code> y después <code>telnet localhost &lt;puerto del nodo&gt;</code></span>
+  <span>Los enlaces solo funcionan desde el portátil (rutas 172.29.0.0/16 y 172.30.0.0/16).</span>
+</div>
+</section>
+
+<!-- ======================= DOCUMENTACIÓN ======================= -->
+<section class="view" id="v-documentacion" aria-label="Documentación">
+  <nav class="docnav" aria-label="Apartados">
+    <a href="#doc-switches">Switches</a><a href="#doc-redes">Redes</a><a href="#doc-firewall">Reglas de FW-01</a><a href="#doc-maquinas">Máquinas</a><a href="#doc-credenciales">Usuarios y token</a>
+  </nav>
+
+  <h2 class="sec" id="doc-switches">Switches de Street-Data</h2>
+  <div class="sw">
+    <article class="swcard" id="sw-01">
+      <div style="display:flex;justify-content:space-between;gap:10px"><div><h3>Street-data-01</h3><p class="note">Core: raíz STP, ruta por defecto a FW-01, default-information originate</p></div><span class="st ok">Aplicada</span></div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Interfaz</th><th>IP / uso</th></tr></thead>
+        <tbody>
+          <tr><td class="m">Vlan10 SEMAFOROS</td><td class="m">172.30.1.1/26 · Gi1/0/1-3</td></tr>
+          <tr><td class="m">Vlan20 CAMARAS</td><td class="m">172.30.1.65/26 · Gi1/0/4-6</td></tr>
+          <tr><td class="m">Vlan30 SENSORES</td><td class="m">172.30.1.129/26 · Gi1/0/7-9</td></tr>
+          <tr><td class="m">Vlan99 GESTION-SW</td><td class="m">172.29.7.1/32</td></tr>
+          <tr><td class="m">Po1 (Te1/1/1-2)</td><td class="m">192.168.101.1/24 → SW-02</td></tr>
+          <tr><td class="m">Po2 (Te1/1/3-4)</td><td class="m">192.168.102.1/24 → SW-03</td></tr>
+          <tr><td class="m">Te1/1/6</td><td class="m">192.168.100.2/24 → FW-01</td></tr>
+        </tbody></table></div>
+      <div><span class="chip">rapid-pvst 4096</span><span class="chip">OSPF router-id 172.29.7.1</span><span class="chip">0.0.0.0/0 → 192.168.100.1</span></div>
+      <pre class="conf" id="conf-sw1">hostname Street-data-01
+ip routing
+!
+vlan 10
+ name SEMAFOROS
+vlan 20
+ name CAMARAS
+vlan 30
+ name SENSORES
+vlan 99
+ name GESTION-SW
+!
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,99 priority 4096
+!
+interface range GigabitEthernet1/0/1 - 3
+ switchport mode access
+ switchport access vlan 10
+interface range GigabitEthernet1/0/4 - 6
+ switchport mode access
+ switchport access vlan 20
+interface range GigabitEthernet1/0/7 - 9
+ switchport mode access
+ switchport access vlan 30
+!
+interface range TenGigabitEthernet1/1/1 - 2
+ channel-group 1 mode active
+interface range TenGigabitEthernet1/1/3 - 4
+ channel-group 2 mode active
+interface Port-channel1
+ no switchport
+ ip address 192.168.101.1 255.255.255.0
+interface Port-channel2
+ no switchport
+ ip address 192.168.102.1 255.255.255.0
+interface TenGigabitEthernet1/1/6
+ no switchport
+ ip address 192.168.100.2 255.255.255.0
+!
+interface Vlan10
+ ip address 172.30.1.1 255.255.255.192
+interface Vlan20
+ ip address 172.30.1.65 255.255.255.192
+interface Vlan30
+ ip address 172.30.1.129 255.255.255.192
+interface Vlan99
+ ip address 172.29.7.1 255.255.255.255
+!
+ip route 0.0.0.0 0.0.0.0 192.168.100.1
+!
+router ospf 1
+ router-id 172.29.7.1
+ network 172.30.1.0 0.0.0.255 area 0
+ network 192.168.101.0 0.0.0.255 area 0
+ network 192.168.102.0 0.0.0.255 area 0
+ network 172.29.7.1 0.0.0.0 area 0
+ passive-interface default
+ no passive-interface Port-channel1
+ no passive-interface Port-channel2
+ default-information originate
+!
+end
+write memory</pre>
+      <div class="btns"><button class="btn go" data-copy-from="conf-sw1">Copiar configuración</button></div>
+    </article>
+
+    <article class="swcard" id="sw-02">
+      <div style="display:flex;justify-content:space-between;gap:10px"><div><h3>Street-data-02</h3><p class="note">Distribución: Po1 con SW-01 y Po2 con SW-03</p></div><span class="st warn">Preparada</span></div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Interfaz</th><th>IP / uso</th></tr></thead>
+        <tbody>
+          <tr><td class="m">Vlan10 SEMAFOROS</td><td class="m">172.30.2.1/26 · Gi1/0/1-3</td></tr>
+          <tr><td class="m">Vlan20 CAMARAS</td><td class="m">172.30.2.65/26 · Gi1/0/4-6</td></tr>
+          <tr><td class="m">Vlan30 SENSORES</td><td class="m">172.30.2.129/26 · Gi1/0/7-9</td></tr>
+          <tr><td class="m">Vlan99 GESTION-SW</td><td class="m">172.29.7.2/32</td></tr>
+          <tr><td class="m">Po1 (Te1/1/1-2)</td><td class="m">192.168.101.2/24 → SW-01</td></tr>
+          <tr><td class="m">Po2 (Te1/1/3-4)</td><td class="m">192.168.103.1/24 → SW-03</td></tr>
+        </tbody></table></div>
+      <div><span class="chip">rapid-pvst 8192</span><span class="chip">OSPF router-id 172.29.7.2</span></div>
+      <pre class="conf" id="conf-sw2">hostname Street-data-02
+ip routing
+!
+vlan 10
+ name SEMAFOROS
+vlan 20
+ name CAMARAS
+vlan 30
+ name SENSORES
+vlan 99
+ name GESTION-SW
+!
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,99 priority 8192
+!
+interface range GigabitEthernet1/0/1 - 3
+ switchport mode access
+ switchport access vlan 10
+interface range GigabitEthernet1/0/4 - 6
+ switchport mode access
+ switchport access vlan 20
+interface range GigabitEthernet1/0/7 - 9
+ switchport mode access
+ switchport access vlan 30
+!
+interface range TenGigabitEthernet1/1/1 - 2
+ channel-group 1 mode active
+interface range TenGigabitEthernet1/1/3 - 4
+ channel-group 2 mode active
+interface Port-channel1
+ no switchport
+ ip address 192.168.101.2 255.255.255.0
+interface Port-channel2
+ no switchport
+ ip address 192.168.103.1 255.255.255.0
+!
+interface Vlan10
+ ip address 172.30.2.1 255.255.255.192
+interface Vlan20
+ ip address 172.30.2.65 255.255.255.192
+interface Vlan30
+ ip address 172.30.2.129 255.255.255.192
+interface Vlan99
+ ip address 172.29.7.2 255.255.255.255
+!
+router ospf 1
+ router-id 172.29.7.2
+ network 172.30.2.0 0.0.0.255 area 0
+ network 192.168.101.0 0.0.0.255 area 0
+ network 192.168.103.0 0.0.0.255 area 0
+ network 172.29.7.2 0.0.0.0 area 0
+ passive-interface default
+ no passive-interface Port-channel1
+ no passive-interface Port-channel2
+!
+end
+write memory</pre>
+      <div class="btns"><button class="btn go" data-copy-from="conf-sw2">Copiar configuración</button></div>
+    </article>
+
+    <article class="swcard" id="sw-03">
+      <div style="display:flex;justify-content:space-between;gap:10px"><div><h3>Street-data-03</h3><p class="note">Distribución: Po1 con SW-01 y Po2 con SW-02</p></div><span class="st warn">Diseño</span></div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Interfaz</th><th>IP / uso</th></tr></thead>
+        <tbody>
+          <tr><td class="m">Vlan10 SEMAFOROS</td><td class="m">172.30.3.1/26 · Gi1/0/1-3</td></tr>
+          <tr><td class="m">Vlan20 CAMARAS</td><td class="m">172.30.3.65/26 · Gi1/0/4-6</td></tr>
+          <tr><td class="m">Vlan30 SENSORES</td><td class="m">172.30.3.129/26 · Gi1/0/7-9</td></tr>
+          <tr><td class="m">Vlan99 GESTION-SW</td><td class="m">172.29.7.3/32</td></tr>
+          <tr><td class="m">Po1 (Te1/1/1-2)</td><td class="m">192.168.102.2/24 → SW-01</td></tr>
+          <tr><td class="m">Po2 (Te1/1/3-4)</td><td class="m">192.168.103.2/24 → SW-02</td></tr>
+        </tbody></table></div>
+      <div><span class="chip">rapid-pvst 12288</span><span class="chip">OSPF router-id 172.29.7.3</span></div>
+      <pre class="conf" id="conf-sw3">hostname Street-data-03
+ip routing
+!
+vlan 10
+ name SEMAFOROS
+vlan 20
+ name CAMARAS
+vlan 30
+ name SENSORES
+vlan 99
+ name GESTION-SW
+!
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,99 priority 12288
+!
+interface range GigabitEthernet1/0/1 - 3
+ switchport mode access
+ switchport access vlan 10
+interface range GigabitEthernet1/0/4 - 6
+ switchport mode access
+ switchport access vlan 20
+interface range GigabitEthernet1/0/7 - 9
+ switchport mode access
+ switchport access vlan 30
+!
+interface range TenGigabitEthernet1/1/1 - 2
+ channel-group 1 mode active
+interface range TenGigabitEthernet1/1/3 - 4
+ channel-group 2 mode active
+interface Port-channel1
+ no switchport
+ ip address 192.168.102.2 255.255.255.0
+interface Port-channel2
+ no switchport
+ ip address 192.168.103.2 255.255.255.0
+!
+interface Vlan10
+ ip address 172.30.3.1 255.255.255.192
+interface Vlan20
+ ip address 172.30.3.65 255.255.255.192
+interface Vlan30
+ ip address 172.30.3.129 255.255.255.192
+interface Vlan99
+ ip address 172.29.7.3 255.255.255.255
+!
+router ospf 1
+ router-id 172.29.7.3
+ network 172.30.3.0 0.0.0.255 area 0
+ network 192.168.102.0 0.0.0.255 area 0
+ network 192.168.103.0 0.0.0.255 area 0
+ network 172.29.7.3 0.0.0.0 area 0
+ passive-interface default
+ no passive-interface Port-channel1
+ no passive-interface Port-channel2
+!
+end
+write memory</pre>
+      <div class="btns"><button class="btn go" data-copy-from="conf-sw3">Copiar configuración</button></div>
+    </article>
+  </div>
+  <p class="note" style="margin-top:12px">LiteSwitch no detecta un cable añadido con el nodo encendido hasta recargarlo en GNS3. Las SVI solo se levantan si alguna boca de acceso tiene enlace.</p>
+
+  <h2 class="sec" id="doc-redes">Redes</h2>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Red</th><th>Rango</th><th>FW-01</th><th>Switch Hyper-V</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td>GESTION</td><td class="m">172.29.0.0/23</td><td class="m">eth0 · 172.29.0.1</td><td>GESTION (Internal)</td><td>Consolas: FW-01, Proxmox, cabina (iSCSI), GNS3 y portátil</td></tr>
+      <tr><td>WAN</td><td class="m">DHCP</td><td class="m">eth1</td><td>Default Switch</td><td>Salida a internet (NAT de Windows)</td></tr>
+      <tr><td>DMZ</td><td class="m">172.29.2.0/23</td><td class="m">eth2 · 172.29.2.1</td><td>DMZ (Private)</td><td>Servicios publicados (vmbr2, pendiente)</td></tr>
+      <tr><td>INTERNAL</td><td class="m">172.29.4.0/23</td><td class="m">eth4 · 172.29.4.1</td><td>INTERNAL (Private)</td><td>VMs de servicio de Proxmox (vmbr1)</td></tr>
+      <tr><td>Gestión de switches</td><td class="m">172.29.7.0/24</td><td class="m">ruta → 192.168.100.2</td><td>—</td><td>Vlan99 /32 de cada LiteSwitch</td></tr>
+      <tr><td>Tránsito FW-01 ↔ SW-01</td><td class="m">192.168.100.0/24</td><td class="m">eth3 · 192.168.100.1</td><td>STREET-DATA (Private)</td><td>Te1/1/6 de Street-data-01</td></tr>
+      <tr><td>Tránsitos entre switches</td><td class="m">192.168.101-103.0/24</td><td class="m">—</td><td>—</td><td>SW01-SW02 (.101), SW01-SW03 (.102), SW02-SW03 (.103)</td></tr>
+      <tr><td>Street-Data</td><td class="m">172.30.0.0/16</td><td class="m">ruta → 192.168.100.2</td><td>—</td><td>172.30.N.0/24 por switch · /26 por VLAN (gw .1, .65, .129)</td></tr>
+    </tbody></table></div>
+
+  <h2 class="sec" id="doc-firewall">Reglas de FW-01</h2>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Regla</th><th>Origen</th><th>Destino</th><th>Puertos</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td>Allow-DHCP-Renew</td><td>wan</td><td>FW-01</td><td class="m">udp 68</td><td>IP por DHCP en la WAN</td></tr>
+      <tr><td>Gestion-Admin</td><td>gestion</td><td class="m">172.29.2.0/23 · 172.29.4.0/23 · 172.29.7.0/24 · 172.30.0.0/16 · 192.168.100.0/24</td><td class="m">22, 80, 443, 161 · ping</td><td>Administrar todas las redes desde GESTION</td></tr>
+      <tr><td>Internet-HTTPS</td><td class="m">172.29.0.0/23 · 172.29.2.0/23 · 172.29.4.0/23</td><td>wan</td><td class="m">tcp 443</td><td>Salida a internet solo por HTTPS</td></tr>
+      <tr><td>DNS-FW01</td><td class="m">172.29.2.0/23 · 172.29.4.0/23</td><td>FW-01</td><td class="m">tcp/udp 53</td><td>DNS de las VMs contra FW-01</td></tr>
+      <tr><td>Internet-HTTP-apt</td><td>internal</td><td>wan</td><td class="m">tcp 80</td><td>apt en INTERNAL (está duplicada: dejar una)</td></tr>
+    </tbody></table></div>
+  <p class="note" style="margin-top:10px">Sin forwardings entre zonas: lo que no permite una regla se rechaza. Copia antes de cada cambio: <span class="mono">cp /etc/config/firewall /etc/config/firewall.bak-$(date +%F-%H%M)</span></p>
+
+  <h2 class="sec" id="doc-maquinas">Máquinas</h2>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Máquina</th><th>Dónde</th><th>vCPU / RAM</th><th>Disco</th></tr></thead>
+    <tbody>
+      <tr><td>Promox-02</td><td>Hyper-V · virtualización anidada</td><td class="m">8 / 6 GB</td><td>—</td></tr>
+      <tr><td>Cabina-01</td><td>Hyper-V</td><td class="m">2</td><td class="m">sistema 16 GB + datos 30 GB · C:\HyperV\Cabina-01</td></tr>
+      <tr><td>Zabbix-01 (VM 100)</td><td>Proxmox · vmbr1</td><td class="m">2 / 2 GB</td><td class="m">8 GB · cabina-01-lvm</td></tr>
+      <tr><td>FW-01</td><td>Hyper-V · 5 tarjetas</td><td class="m">—</td><td class="m">openwrt.vhdx</td></tr>
+      <tr><td>GNS3 VM</td><td>Hyper-V</td><td class="m">—</td><td>—</td></tr>
+    </tbody></table></div>
+
+  <h2 class="sec" id="doc-credenciales">Usuarios y token</h2>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Equipo</th><th>Usuario</th><th>Acceso</th></tr></thead>
+    <tbody>
+      <tr><td>FW-01</td><td class="m">root</td><td class="m">ssh root@172.29.0.1 · http://172.29.0.1</td></tr>
+      <tr><td>Promox-02</td><td class="m">root@pam</td><td class="m">https://172.29.0.22:8006</td></tr>
+      <tr><td>Cabina-01</td><td class="m">vicente (su - para root)</td><td class="m">ssh vicente@172.29.0.23 · https://172.29.0.23:9090</td></tr>
+      <tr><td>GNS3 VM</td><td class="m">gns3</td><td class="m">ssh gns3@172.29.0.40 · http://172.29.0.40</td></tr>
+      <tr><td>Zabbix-01</td><td class="m">administrador</td><td class="m">clave SSH clavessh@laboratoriofp</td></tr>
+      <tr><td>Proxmox → Zabbix</td><td class="m">zabbix@pve!monitoring</td><td class="m">secreto SECRETO-TOKEN-PVE (no se publica) · PVEAuditor</td></tr>
+    </tbody></table></div>
+</section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+  const views=["acceso","documentacion"];
+  const docAnchors=["doc-switches","doc-redes","doc-firewall","doc-maquinas","doc-credenciales","sw-01","sw-02","sw-03"];
+  function show(){
+    let h=(location.hash||"#acceso").slice(1), v=h;
+    if(docAnchors.includes(h)) v="documentacion";
+    if(!views.includes(v)) v="acceso";
+    views.forEach(n=>document.getElementById("v-"+n).classList.toggle("on",n===v));
+    document.querySelectorAll("nav.tabs a").forEach(a=>{ if(a.dataset.view===v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+    if(docAnchors.includes(h)){ const el=document.getElementById(h); if(el) requestAnimationFrame(()=>el.scrollIntoView({block:"start"})); }
+    else window.scrollTo(0,0);
+  }
+  window.addEventListener("hashchange",show); show();
+
+  const toast=document.getElementById("toast"); let t;
+  function say(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(t); t=setTimeout(()=>toast.classList.remove("show"),1600); }
+  async function copy(text,label){
+    try{ await navigator.clipboard.writeText(text); say(label||"Copiado"); }
+    catch(e){
+      const ta=document.createElement("textarea"); ta.value=text; ta.style.position="absolute"; ta.style.left="-9999px";
+      document.body.appendChild(ta); ta.select(); let ok=false; try{ ok=document.execCommand("copy"); }catch(_){}
+      ta.remove(); say(ok?(label||"Copiado"):"No se pudo copiar: selecciona el texto a mano");
+    }
+  }
+  document.addEventListener("click",e=>{
+    const b=e.target.closest("[data-copy],[data-copy-from]"); if(!b) return;
+    if(b.dataset.copy!==undefined) copy(b.dataset.copy, b.dataset.copy.startsWith("ssh ")?"Copiado: "+b.dataset.copy:"Copiado");
+    else copy(document.getElementById(b.dataset.copyFrom).textContent,"Configuración copiada");
+  });
+})();
+</script>
+</body>
+</html>
